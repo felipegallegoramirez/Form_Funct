@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Builder Pro | Constructor de Cuestionarios</title>
+    <meta name="description" content="Crea cuestionarios interactivos y formularios avanzados.">
+
+    <!-- Design Foundation -->
+    <link rel="stylesheet" href="index.css">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="logo-container">
+            <div class="logo">Q</div>
+            <span style="font-weight: 700; color: #18181b;">Builder Pro</span>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn btn-ghost btn-icon" onclick="openScoringModal()" title="Configuración de Puntuación">
+                <i data-lucide="award"></i>
+            </button>
+            <button class="btn btn-ghost btn-icon" onclick="openJsonModal()" title="Configuración JSON">
+                <i data-lucide="settings"></i>
+            </button>
+            <div style="height: 24px; width: 1px; background: #e4e4e7;"></div>
+            <button id="preview-btn" class="btn btn-ghost">
+                <i data-lucide="eye"></i> Vista Previa
+            </button>
+            <button class="btn btn-primary" onclick="openJsonModal()">Guardar</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="container">
+        <!-- Editor View -->
+        <section id="editor-view">
+            <div id="blocks-container" class="blocks-container">
+                <!-- Blocks will be injected here -->
+            </div>
+        </section>
+
+        <!-- Preview View -->
+        <section id="preview-view" class="hidden">
+            <div id="preview-container" class="preview-article">
+                <!-- Preview content will be injected here -->
+            </div>
+            <div
+                style="margin-top: 5rem; padding-top: 2rem; border-top: 1px solid #f4f4f5; text-align: center; color: #a1a1aa; font-size: 0.875rem;">
+                Fin del cuestionario
+            </div>
+        </section>
+    </main>
+
+    <!-- FAB Menu (New Block Actions) -->
+    <div class="fab-container">
+        <div id="fab-menu" class="fab-menu">
+            <button class="menu-item" onclick="addBlock('title')">
+                <div class="menu-item-icon"><i data-lucide="heading-1"></i></div>
+                <span>Título Section</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('paragraph')">
+                <div class="menu-item-icon"><i data-lucide="type"></i></div>
+                <span>Instrucciones</span>
+            </button>
+            <div style="width: 100%; height: 1px; background: #f4f4f5; margin: 4px 0;"></div>
+            <button class="menu-item" onclick="addBlock('multiple_choice')">
+                <div class="menu-item-icon"><i data-lucide="check-circle-2"></i></div>
+                <span>Opción Múltiple</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('dropdown')">
+                <div class="menu-item-icon"><i data-lucide="list"></i></div>
+                <span>Desplegable</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('text_response')">
+                <div class="menu-item-icon"><i data-lucide="text-cursor-input"></i></div>
+                <span>Texto Libre</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('matching')">
+                <div class="menu-item-icon"><i data-lucide="arrow-left-right"></i></div>
+                <span>Relacionar</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('rating')">
+                <div class="menu-item-icon"><i data-lucide="star"></i></div>
+                <span>Valoración</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('date')">
+                <div class="menu-item-icon"><i data-lucide="calendar"></i></div>
+                <span>Fecha</span>
+            </button>
+            <div style="width: 100%; height: 1px; background: #f4f4f5; margin: 4px 0;"></div>
+            <button class="menu-item" onclick="addBlock('image')">
+                <div class="menu-item-icon"><i data-lucide="image"></i></div>
+                <span>Imagen</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('video')">
+                <div class="menu-item-icon"><i data-lucide="video"></i></div>
+                <span>Video</span>
+            </button>
+            <button class="menu-item" onclick="addBlock('youtube')">
+                <div class="menu-item-icon"><i data-lucide="youtube"></i></div>
+                <span>YouTube</span>
+            </button>
+        </div>
+        <button id="fab-trigger" class="fab-trigger">
+            <i data-lucide="plus" style="width: 28px; height: 28px;"></i>
+        </button>
+    </div>
+
+    <!-- JSON Settings Modal -->
+    <div id="json-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 style="font-weight: 700; font-size: 1.25rem;">Código JSON</h3>
+                    <p style="font-size: 0.75rem; color: #71717a;">Exporta o importa el contenido del artículo</p>
+                </div>
+                <button class="btn btn-ghost btn-icon" onclick="closeJsonModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <textarea id="json-textarea" class="json-textarea" spellcheck="false"></textarea>
+            </div>
+            <div class="modal-footer">
+                <div style="display: flex; gap: 0.5rem; margin-right: auto;">
+                    <button class="btn btn-ghost" onclick="copyJson()">Copiar</button>
+                    <button class="btn btn-ghost" onclick="downloadJson()">Bajar</button>
+                </div>
+                <button class="btn btn-ghost" style="color: #3b82f6;" onclick="importJson('append')">Añadir</button>
+                <button class="btn btn-primary" style="background: #ef4444;"
+                    onclick="importJson('replace')">Reemplazar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scoring Modal -->
+    <div id="scoring-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h3 style="font-weight: 700; font-size: 1.25rem;">Categorías de Puntuación</h3>
+                    <p style="font-size: 0.75rem; color: #71717a;">Define las categorías para el modo personalidad</p>
+                </div>
+                <button class="btn btn-ghost btn-icon" onclick="closeScoringModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="categories-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Categories will be injected here -->
+                </div>
+                <button class="btn btn-ghost" onclick="addScoringCategory()"
+                    style="margin-top: 1rem; width: 100%; border: 1px dashed #d4d4d8;">
+                    <i data-lucide="plus" style="width: 16px; margin-right: 0.5rem;"></i> Añadir Categoría
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeScoringModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="results-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 style="font-weight: 700; font-size: 1.25rem;">Resultados</h3>
+                <button class="btn btn-ghost btn-icon" onclick="closeResultsModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div id="results-body" class="modal-body" style="text-align: center;">
+                <!-- Results will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Logic -->
+    <script src="main.js"></script>
+</body>
+
+</html>
