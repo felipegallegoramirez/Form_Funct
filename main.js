@@ -19,6 +19,7 @@ let blocks = [
 ];
 
 let isPreview = false;
+let currentStage = 0;
 let activeMenu = false;
 let scoringCategories = [
     { id: 'cat_1', name: 'Líder', color: '#3b82f6' },
@@ -40,7 +41,7 @@ let editorConfig = {
     allowedItems: [
         'title', 'paragraph', 'image', 'video', 'youtube',
         'multiple_choice', 'dropdown', 'text_response', 'matching', 'rating', 'date',
-        'quote', 'callout', 'flipcard', 'code', 'table', 'custom', 'divider'
+        'quote', 'callout', 'flipcard', 'code', 'table', 'custom', 'divider', 'stage_break'
     ]
 };
 
@@ -151,11 +152,8 @@ function addBlock(type) {
         newBlock.scoringType = 'none';
         newBlock.points = 0;
     }
-    if (type === 'date') {
-        newBlock.question = '';
-        newBlock.required = false;
-        newBlock.scoringType = 'none';
-        newBlock.points = 0;
+    if (type === 'stage_break') {
+        newBlock.content = 'Nueva Etapa';
     }
 
     blocks.push(newBlock);
@@ -302,41 +300,142 @@ function render() {
     if (isPreview) {
         editorView.classList.add('hidden');
         previewView.classList.remove('hidden');
-        renderPreview();
+        // Only do a full render of preview if it's empty or we really need to
+        if (!previewContainer.children.length) {
+            renderPreview();
+        }
     } else {
         editorView.classList.remove('hidden');
         previewView.classList.add('hidden');
         renderEditor();
     }
     lucide.createIcons();
-    // Re-bind scroll listener or other UI needs if any
+}
+
+function getStages() {
+    const stages = [[]];
+    let currentStageIndex = 0;
+
+    blocks.forEach(block => {
+        if (block.isHidden) return;
+        if (block.type === 'stage_break') {
+            stages.push([]);
+            currentStageIndex++;
+        } else {
+            stages[currentStageIndex].push(block);
+        }
+    });
+
+    return stages.filter(s => s.length > 0 || stages.length === 1);
 }
 
 function renderPreview() {
     previewContainer.innerHTML = '';
-    const visibleBlocks = blocks.filter(b => !b.isHidden);
+    const stages = getStages();
 
-    if (visibleBlocks.length === 0) {
-        previewContainer.innerHTML = '<p style="text-align:center; color:#71717a;">No hay contenido para mostrar.</p>';
-        return;
-    }
+    if (currentStage >= stages.length) currentStage = stages.length - 1;
+    if (currentStage < 0) currentStage = 0;
 
-    visibleBlocks.forEach(block => {
-        const div = document.createElement('div');
-        div.innerHTML = renderViewElement(block);
-        previewContainer.appendChild(div);
+    // Header / Progress
+    const headerContainer = document.createElement('div');
+    headerContainer.id = 'preview-progress-header';
+    previewContainer.appendChild(headerContainer);
+    updatePreviewProgress(stages.length);
+
+    // Render all stages
+    stages.forEach((blocksInStage, index) => {
+        const stageDiv = document.createElement('div');
+        stageDiv.className = 'preview-stage';
+        stageDiv.dataset.stageIndex = index;
+        stageDiv.style.display = (index === currentStage) ? 'block' : 'none';
+
+        if (blocksInStage.length === 0 && stages.length === 1) {
+            stageDiv.innerHTML = '<p style="text-align:center; color:#71717a;">No hay contenido para mostrar.</p>';
+        } else {
+            blocksInStage.forEach(block => {
+                const div = document.createElement('div');
+                div.innerHTML = renderViewElement(block);
+                stageDiv.appendChild(div);
+            });
+        }
+        previewContainer.appendChild(stageDiv);
     });
 
-    // Add Submit Button
-    const submitContainer = document.createElement('div');
-    submitContainer.style.marginTop = '3rem';
-    submitContainer.style.textAlign = 'center';
-    submitContainer.innerHTML = `
-        <button class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.125rem;" onclick="calculateResults()">
-            Enviar Respuestas
-        </button>
+    // Pagination/Submit Buttons Footer
+    const footerContainer = document.createElement('div');
+    footerContainer.id = 'preview-pagination-footer';
+    footerContainer.style.marginTop = '3rem';
+    footerContainer.style.display = 'flex';
+    footerContainer.style.gap = '1rem';
+    footerContainer.style.justifyContent = 'center';
+    previewContainer.appendChild(footerContainer);
+
+    updatePreviewFooter(stages.length);
+    lucide.createIcons();
+}
+
+function updatePreviewProgress(totalStages) {
+    const header = document.getElementById('preview-progress-header');
+    if (!header || totalStages <= 1) return;
+
+    header.innerHTML = `
+        <div style="margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.75rem; color: #71717a; font-weight: 600;">
+                <span>ETAPA ${currentStage + 1} DE ${totalStages}</span>
+                <span>${Math.round(((currentStage + 1) / totalStages) * 100)}%</span>
+            </div>
+            <div style="height: 6px; width: 100%; background: #f4f4f5; border-radius: 3px; overflow: hidden;">
+                <div style="height: 100%; width: ${((currentStage + 1) / totalStages) * 100}%; background: #18181b; transition: width 0.3s ease;"></div>
+            </div>
+        </div>
     `;
-    previewContainer.appendChild(submitContainer);
+}
+
+function updatePreviewFooter(totalStages) {
+    const footer = document.getElementById('preview-pagination-footer');
+    if (!footer) return;
+
+    footer.innerHTML = '';
+
+    if (currentStage > 0) {
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'btn btn-ghost';
+        prevBtn.style.padding = '0.75rem 1.5rem';
+        prevBtn.innerHTML = '<i data-lucide="arrow-left" style="width: 18px; margin-right: 0.5rem;"></i> Anterior';
+        prevBtn.onclick = () => switchStage(-1);
+        footer.appendChild(prevBtn);
+    }
+
+    if (currentStage < totalStages - 1) {
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'btn btn-primary';
+        nextBtn.style.padding = '0.75rem 2rem';
+        nextBtn.innerHTML = 'Siguiente <i data-lucide="arrow-right" style="width: 18px; margin-left: 0.5rem;"></i>';
+        nextBtn.onclick = () => switchStage(1);
+        footer.appendChild(nextBtn);
+    } else {
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'btn btn-primary';
+        submitBtn.style.padding = '0.75rem 2.5rem';
+        submitBtn.style.minWidth = '200px';
+        submitBtn.innerHTML = 'Enviar Respuestas';
+        submitBtn.onclick = () => calculateResults();
+        footer.appendChild(submitBtn);
+    }
+    lucide.createIcons();
+}
+
+function switchStage(direction) {
+    const stages = document.querySelectorAll('.preview-stage');
+    if (!stages.length) return;
+
+    stages[currentStage].style.display = 'none';
+    currentStage += direction;
+    stages[currentStage].style.display = 'block';
+
+    updatePreviewProgress(stages.length);
+    updatePreviewFooter(stages.length);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderEditor() {
@@ -707,18 +806,27 @@ function renderBlockInputs(block) {
                 <textarea class="block-input" style="background: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 1rem; border-radius: 0.5rem; min-height: 120px;" 
                     oninput="updateBlockContent('${block.id}', this.value)" placeholder="// escribe tu código aquí...">${block.content}</textarea>
             `;
-        case 'divider':
-            return `<div style="height: 1px; background: #e4e4e7; width: 100%; margin: 1rem 0;"></div>`;
-        case 'table':
+        case 'stage_break':
             return `
-                <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem;">
-                    <p style="font-size: 0.625rem; font-weight: 700; color: #71717a; margin-bottom: 0.5rem;">TABLA (CSV: Col1, Col2...)</p>
-                    <textarea class="block-input" style="background: white; border: 1px solid #e4e4e7; border-radius: 0.5rem; padding: 0.5rem; font-family: monospace; font-size: 0.75rem; min-height: 100px;" 
-                        oninput="updateBlockContent('${block.id}', this.value)" placeholder="Encabezado1, Encabezado2\nDato1, Dato2">${block.content}</textarea>
+                <div style="background: #18181b; color: white; padding: 1.5rem; border-radius: 0.75rem; display: flex; align-items: center; gap: 1rem; position: relative; overflow: hidden;">
+                    <div style="position: absolute; right: -20px; top: -20px; opacity: 0.1;">
+                        <i data-lucide="layers" style="width: 120px; height: 120px;"></i>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i data-lucide="layers" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; margin-bottom: 0.25rem; display: block;">Fin de la Etapa / Salto de Página</label>
+                        <input type="text" class="block-input" 
+                            style="background: transparent; border: none; font-size: 1.25rem; font-weight: 700; color: white; padding: 0; width: 100%;"
+                            oninput="updateBlockContent('${block.id}', this.value)" 
+                            value="${block.content}" 
+                            placeholder="Nombre de la etapa (opcional)...">
+                    </div>
                 </div>
             `;
         default:
-            return `<div style="color: #a1a1aa; font-style: italic;">Editor no implementado para ${block.type}</div>`;
+            return `<div style="color: #a1a1aa; font-style: italic;">Editor no implementado for ${block.type}</div>`;
     }
 }
 
@@ -937,6 +1045,10 @@ function toggleMenu(force) {
 
 function togglePreview() {
     isPreview = !isPreview;
+    if (isPreview) {
+        currentStage = 0;
+        previewContainer.innerHTML = ''; // Force clear to re-render fresh
+    }
     previewBtn.innerHTML = isPreview
         ? '<i data-lucide="edit-3" style="width: 16px; height: 16px;"></i> Editar'
         : '<i data-lucide="eye" style="width: 16px; height: 16px;"></i> Vista Previa';
@@ -1091,10 +1203,10 @@ document.addEventListener('DOMContentLoaded', () => {
             div.style.gap = '0.5rem';
             div.style.alignItems = 'center';
             div.innerHTML = `
-                < input type = "text" class="block-input" value = "${cat.name}" oninput = "updateCategory(${i}, 'name', this.value)" placeholder = "Nombre de categoría" >
-                    <input type="color" value="${cat.color || '#3b82f6'}" oninput="updateCategory(${i}, 'color', this.value)" style="width: 32px; height: 32px; border: none; padding: 0; background: none; cursor: pointer;">
-                        <button class="btn btn-ghost btn-icon" onclick="removeCategory(${i})"><i data-lucide="trash-2" style="width: 14px; color: #ef4444;"></i></button>
-                        `;
+                <input type="text" class="block-input" value="${cat.name}" oninput="updateCategory(${i}, 'name', this.value)" placeholder="Nombre de categoría">
+                <input type="color" value="${cat.color || '#3b82f6'}" oninput="updateCategory(${i}, 'color', this.value)" style="width: 32px; height: 32px; border: none; padding: 0; background: none; cursor: pointer;">
+                <button class="btn btn-ghost btn-icon" onclick="removeCategory(${i})"><i data-lucide="trash-2" style="width: 14px; color: #ef4444;"></i></button>
+            `;
             categoriesList.appendChild(div);
         });
         lucide.createIcons();
@@ -1172,8 +1284,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const select = document.querySelector(`select[data-block-id="${block.id}"]`);
                         if (select) {
                             const opt = block.options.find(o => o.id === select.value);
-                            if (opt && opt.category) {
-                                personalityScores[opt.category] = (personalityScores[opt.category] || 0) + (opt.points || 0);
+                            if (opt && opt.category && personalityScores.hasOwnProperty(opt.category)) {
+                                personalityScores[opt.category] += (opt.points || 0);
                             }
                         }
                     } else {
@@ -1181,8 +1293,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         selected.forEach(s => {
                             const optId = s.dataset.optionId;
                             const opt = block.options.find(o => o.id === optId);
-                            if (opt && opt.category) {
-                                personalityScores[opt.category] = (personalityScores[opt.category] || 0) + (opt.points || 0);
+                            if (opt && opt.category && personalityScores.hasOwnProperty(opt.category)) {
+                                personalityScores[opt.category] += (opt.points || 0);
                             }
                         });
                     }
